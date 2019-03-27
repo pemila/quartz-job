@@ -1,0 +1,40 @@
+server:
+  port: 8092
+  tomcat:
+    max-threads: 2000
+    min-spare-threads: 20
+  connection-timeout: 30s
+spring:
+  application:
+    name: JOB
+  profiles:
+    active: dev
+  mvc:
+    servlet:
+      load-on-startup: 1
+  datasource:
+    driver-class-name: com.mysql.jdbc.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+  jpa:
+    database: mysql
+    show-sql: true  #配置在日志中打印出执行的 SQL 语句信息
+    database-platform: org.hibernate.dialect.MySQL5InnoDBDialect  #默认的存储引擎切换为 InnoDB 用的
+    hibernate:
+      ddl-auto: none
+---
+spring:
+  profiles: dev
+  datasource:
+    url: jdbc:mysql://192.168.1.185:3306/life_job?useSSL=true
+    username: dba369
+    password: nine123
+
+---
+spring:
+  profiles: prod
+  datasource:
+   url: jdbc:mysql://47.105.68.254:3306/life_job?useSSL=true
+   username: KMAGpu14ti
+   password: qdM6JEP4AoagW8xR
