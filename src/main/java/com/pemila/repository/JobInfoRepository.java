@@ -10,6 +10,5 @@ import org.springframework.stereotype.Repository;
  */
 @Repository
 public interface JobInfoRepository extends JpaRepository<JobInfo,Integer> {
-    JobInfo findByJobName(String name);
 
 }

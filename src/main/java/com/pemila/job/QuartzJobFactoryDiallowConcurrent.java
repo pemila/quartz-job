@@ -10,7 +10,7 @@ import org.quartz.JobExecutionContext;
  * @date 2019/3/27 17:18
  */
 @DisallowConcurrentExecution
-public class QuartzJobFactoryDiabllowConcurrent implements Job {
+public class QuartzJobFactoryDiallowConcurrent implements Job {
     @Override
     public void execute(JobExecutionContext context){
         JobInfo scheduleJob = (JobInfo) context.getMergedJobDataMap().get("scheduleJob");
