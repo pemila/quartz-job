@@ -1,6 +1,7 @@
 package com.pemila.service;
 
 import com.pemila.model.JobInfo;
+import com.pemila.util.Result;
 import org.quartz.SchedulerException;
 
 import java.util.List;
@@ -12,11 +13,26 @@ import java.util.List;
 public interface JobManagerService {
 
     /**
-     * 添加任务
-     * @param job JobInfo
+     * 查询所有任务，包含执行中以及不在执行计划中的所有任务
+     * @return List<JobInfoEx> list
      * @throws SchedulerException e
      */
-    void addJob(JobInfo job) throws SchedulerException;
+    List<JobInfo> queryAllJob() throws SchedulerException;
+
+    /**
+     * 添加任务到数据库
+     * @param job jobInfo
+     * @return Result
+     * @throws SchedulerException e
+     */
+    Result addJob(JobInfo job) throws SchedulerException;
+
+    /**
+     * 根据jobId将任务添加到执行计划中
+     * @param jobId id
+     * @return Result
+     */
+    Result addJobToRunning(int jobId) throws SchedulerException;
 
     /**
      * 更新任务执行频率,如果任务在执行计划中则同时更新调度计划
@@ -41,12 +57,6 @@ public interface JobManagerService {
      */
     List<JobInfo> queryRunningJob() throws SchedulerException;
 
-    /**
-     * 查询全部计划中的任务
-     * @return List<JobInfo>
-     * @throws SchedulerException e
-     */
-    List<JobInfo> queryAllJob() throws SchedulerException;
 
     /**
      * 删除任务
@@ -76,6 +86,8 @@ public interface JobManagerService {
      * @throws SchedulerException e
      */
     void runAJobNow(JobInfo job) throws SchedulerException;
+
+
 }
 
 

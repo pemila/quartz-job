@@ -1,32 +1,98 @@
 package com.pemila.service.impl;
 
-import com.pemila.job.QuartzJobFactory;
-import com.pemila.job.QuartzJobFactoryDiallowConcurrent;
+import com.pemila.core.QuartzJobFactory;
+import com.pemila.core.QuartzJobFactoryDisallowConcurrent;
 import com.pemila.model.JobInfo;
 import com.pemila.repository.JobInfoRepository;
 import com.pemila.service.JobManagerService;
 import com.pemila.util.Logs;
+import com.pemila.util.Result;
 import org.quartz.*;
 import org.quartz.impl.matchers.GroupMatcher;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.quartz.SchedulerFactoryBean;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 /**
  * @author 月在未央
  * @date 2019/3/27 17:52
  */
 @Service
+@Transactional(rollbackFor = Exception.class)
 public class JobManagerServiceImpl implements JobManagerService {
 
     @Autowired
     private JobInfoRepository jobInfoRepository;
     @Autowired
     private SchedulerFactoryBean schedulerFactoryBean;
+
+    @Override
+    public List<JobInfo> queryAllJob() throws SchedulerException {
+        //查询数据库中所有任务
+        List<JobInfo> infoList = jobInfoRepository.findAll();
+        Map<String,JobInfo> map = new HashMap<>();
+        infoList.forEach(e-> map.put(e.getJobName(),e));
+        //获取调度器
+        Scheduler scheduler = schedulerFactoryBean.getScheduler();
+        //创建一个matcher
+        GroupMatcher<JobKey> matcher = GroupMatcher.anyJobGroup();
+        //使用matcher从调度器中获取匹配的JobKey
+        Set<JobKey> jobKeys = scheduler.getJobKeys(matcher);
+        for (JobKey jobKey : jobKeys) {
+            //获取trigger
+            List<? extends Trigger> triggers = scheduler.getTriggersOfJob(jobKey);
+            for (Trigger trigger : triggers) {
+                String key = jobKey.getName();
+                if(map.containsKey(key)){
+                    JobInfo job = map.get(key);
+                    //根据trigger从调度器中获取状态
+                    Trigger.TriggerState triggerState = scheduler.getTriggerState(trigger.getKey());
+                    //获取任务实时状态
+                    job.setIsRunning(triggerState.ordinal());
+                }
+            }
+        }
+        infoList = new ArrayList<>(map.values());
+        return infoList;
+    }
+
+    @Override
+    public Result addJob(JobInfo job) {
+        job.setCreateTime(System.currentTimeMillis()/1000);
+        job.setUpdateTime(job.getCreateTime());
+        job = jobInfoRepository.save(job);
+        return job.getId()>0?Result.success():Result.fail("新增任务失败");
+    }
+
+    @Override
+    public Result addJobToRunning(int jobId) throws SchedulerException {
+        //获取任务信息
+        JobInfo info = jobInfoRepository.findById(jobId).get();
+        if(info.getJobStatus()==0){
+            return Result.fail("任务状态为不可执行");
+        }
+        Scheduler scheduler = schedulerFactoryBean.getScheduler();
+        TriggerKey triggerKey = TriggerKey.triggerKey(info.getJobName(), info.getJobGroup());
+        CronTrigger trigger = (CronTrigger) scheduler.getTrigger(triggerKey);
+        if(trigger==null) {
+            Class clazz = "1".equals(info.getIsConcurrent())
+                    ? QuartzJobFactory.class
+                    : QuartzJobFactoryDisallowConcurrent.class;
+            JobDetail jobDetail = JobBuilder.newJob(clazz).withIdentity(info.getJobName(), info.getJobGroup()).build();
+            jobDetail.getJobDataMap().put("scheduleJob", info);
+            CronScheduleBuilder scheduleBuilder = CronScheduleBuilder.cronSchedule(info.getCronExpression());
+            trigger = TriggerBuilder.newTrigger().withIdentity(info.getJobName(), info.getJobGroup()).withSchedule(scheduleBuilder).build();
+            scheduler.scheduleJob(jobDetail, trigger);
+        }else {
+            CronScheduleBuilder scheduleBuilder = CronScheduleBuilder.cronSchedule(info.getCronExpression());
+            trigger = trigger.getTriggerBuilder().withIdentity(triggerKey).withSchedule(scheduleBuilder).build();
+            scheduler.rescheduleJob(triggerKey, trigger);
+        }
+        return Result.success();
+    }
 
     @Override
     public void updateJobCron(int jobId, String cron) throws SchedulerException {
@@ -55,9 +121,9 @@ public class JobManagerServiceImpl implements JobManagerService {
                 job.setUpdateTime(System.currentTimeMillis()/1000);
                 break;
             case 1:
-                addJob(job);
                 job.setJobStatus(1);
                 job.setUpdateTime(System.currentTimeMillis()/1000);
+                addJob(job);
                 break;
             default:
                 break;
@@ -91,69 +157,6 @@ public class JobManagerServiceImpl implements JobManagerService {
         return jobList;
     }
 
-    @Override
-    public List<JobInfo> queryAllJob() throws SchedulerException {
-        Scheduler scheduler = schedulerFactoryBean.getScheduler();
-        GroupMatcher<JobKey> matcher = GroupMatcher.anyJobGroup();
-        Set<JobKey> jobKeys = scheduler.getJobKeys(matcher);
-        List<JobInfo> jobList = new ArrayList<JobInfo>();
-        for (JobKey jobKey : jobKeys) {
-            List<? extends Trigger> triggers = scheduler.getTriggersOfJob(jobKey);
-            for (Trigger trigger : triggers) {
-                JobInfo job = new JobInfo();
-                job.setJobName(jobKey.getName());
-                job.setJobGroup(jobKey.getGroup());
-                job.setJobDesc("触发器:" + trigger.getKey());
-                Trigger.TriggerState triggerState = scheduler.getTriggerState(trigger.getKey());
-                //TODO 测试triggerState.ordinal()
-                    job.setJobStatus(triggerState.ordinal());
-                if (trigger instanceof CronTrigger) {
-                    CronTrigger cronTrigger = (CronTrigger) trigger;
-                    String cronExpression = cronTrigger.getCronExpression();
-                    job.setCronExpression(cronExpression);
-                }
-                jobList.add(job);
-            }
-        }
-        return jobList;
-    }
-
-    @Override
-    public void addJob(JobInfo job) throws SchedulerException {
-        if(job!=null){
-            job.setCreateTime(System.currentTimeMillis()/1000);
-            job.setUpdateTime(job.getCreateTime());
-            jobInfoRepository.save(job);
-            if (1!=job.getJobStatus()){
-                //不需要执行，则返回
-                return;
-            }
-        }else {
-            return;
-        }
-        //将任务添加到调度器
-        Scheduler scheduler = schedulerFactoryBean.getScheduler();
-        Logs.info("====== add scheduler");
-        TriggerKey triggerKey = TriggerKey.triggerKey(job.getJobName(), job.getJobGroup());
-        CronTrigger trigger = (CronTrigger) scheduler.getTrigger(triggerKey);
-        if(trigger==null) {
-            Class clazz = null;
-            if("1".equals(job.getIsConcurrent())) {
-                clazz =  QuartzJobFactory.class;
-            }else {
-                clazz = QuartzJobFactoryDiallowConcurrent.class;
-            }
-            JobDetail jobDetail = JobBuilder.newJob(clazz).withIdentity(job.getJobName(), job.getJobGroup()).build();
-            jobDetail.getJobDataMap().put("scheduleJob", job);
-            CronScheduleBuilder scheduleBuilder = CronScheduleBuilder.cronSchedule(job.getCronExpression());
-            trigger = TriggerBuilder.newTrigger().withIdentity(job.getJobName(), job.getJobGroup()).withSchedule(scheduleBuilder).build();
-            scheduler.scheduleJob(jobDetail, trigger);
-        }else {
-            CronScheduleBuilder scheduleBuilder = CronScheduleBuilder.cronSchedule(job.getCronExpression());
-            trigger = trigger.getTriggerBuilder().withIdentity(triggerKey).withSchedule(scheduleBuilder).build();
-            scheduler.rescheduleJob(triggerKey, trigger);
-        }
-    }
 
     @Override
     public void deleteJob(int jobId) throws SchedulerException {

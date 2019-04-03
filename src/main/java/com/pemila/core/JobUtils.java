@@ -1,4 +1,4 @@
-package com.pemila.job;
+package com.pemila.core;
 
 import com.pemila.model.JobInfo;
 import com.pemila.util.Logs;
@@ -20,7 +20,7 @@ public class JobUtils {
         // springId不为空先按springId查找bean
         if (!StringUtils.isEmpty(scheduleJob.getSpringId())) {
             object = SpringUtil.getBean(scheduleJob.getSpringId());
-        } else if (StringUtils.isEmpty(scheduleJob.getBeanClass())) {
+        } else if (!StringUtils.isEmpty(scheduleJob.getBeanClass())) {
             try {
                 clazz = Class.forName(scheduleJob.getBeanClass());
                 object = clazz.newInstance();

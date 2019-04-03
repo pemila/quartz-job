@@ -2,11 +2,13 @@ package com.pemila.controller;
 
 import com.pemila.model.JobInfo;
 import com.pemila.service.JobManagerService;
+import com.pemila.util.Result;
 import org.quartz.SchedulerException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import javax.validation.constraints.NotNull;
+import java.util.List;
 
 /**
  * 定时任务管理
@@ -19,24 +21,28 @@ public class JobManagerController {
     @Autowired
     private JobManagerService managerService;
 
-    /** 向数据库中新增定时任务计划*/
+    //5.将任务从运行队列移除
+    //6.更新数据库任务状态,必须不再运行中
+    //3.删除数据库任务，必须不再运行中
+
+    /** 查询所有任务*/
+    @GetMapping("/job/query/all")
+    public Result<List<JobInfo>> queryAllJob() throws SchedulerException {
+        return Result.success(managerService.queryAllJob());
+    }
+
+    /** 新增数据库任务。不加入运行队列*/
     @PostMapping("/job/add/jobInfo")
-    public void addJob(@RequestBody JobInfo jobInfo) throws Exception {
-            managerService.addJob(jobInfo);
+    public Result addJob(@RequestBody JobInfo jobInfo) throws SchedulerException {
+        return managerService.addJob(jobInfo);
     }
 
-    /** 更新执行任务状态，对于执行中的任务同时修改调度计划*/
-    @GetMapping("/job/update/status")
-    public void updateJobStatus(@RequestParam @NotNull Integer jobId,@RequestParam @NotNull Integer jobStatus )
-            throws Exception {
-        managerService.updateJobStatus(jobId,jobStatus);
+    /** 将任务加入运行队列，即启动任务*/
+    @GetMapping("/job/add/toRunning")
+    public Result addJobToRunning(@RequestParam @NotNull int jobId) throws SchedulerException {
+        return managerService.addJobToRunning(jobId);
     }
 
-    /** 更新任务执行频率*/
-    @GetMapping("/job/update/cron")
-    public void updateJobCron(@RequestParam @NotNull Integer jobId,@RequestParam @NotNull String cron )
-            throws SchedulerException {
-        managerService.updateJobCron(jobId,cron);
-    }
+
 
 }

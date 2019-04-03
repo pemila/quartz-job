@@ -1,4 +1,4 @@
-package com.pemila.job;
+package com.pemila.core;
 
 import com.pemila.model.JobInfo;
 import org.quartz.Job;
