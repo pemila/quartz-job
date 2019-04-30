@@ -21,10 +21,6 @@ public class JobManagerController {
     @Autowired
     private JobManagerService managerService;
 
-    //5.将任务从运行队列移除
-    //6.更新数据库任务状态,必须不再运行中
-    //3.删除数据库任务，必须不再运行中
-
     /** 查询所有任务*/
     @GetMapping("/job/query/all")
     public Result<List<JobInfo>> queryAllJob() throws SchedulerException {
@@ -38,11 +34,32 @@ public class JobManagerController {
     }
 
     /** 将任务加入运行队列，即启动任务*/
-    @GetMapping("/job/add/toRunning")
+    @GetMapping("/job/start/toRunning")
     public Result addJobToRunning(@RequestParam @NotNull int jobId) throws SchedulerException {
         return managerService.addJobToRunning(jobId);
     }
 
+    /** 暂停运行中的任务*/
+    @GetMapping("/job/pause/runningJob")
+    public Result pauseRunningJob(@RequestParam @NotNull Integer jobId) throws SchedulerException {
+        return managerService.pauseJob(jobId);
+    }
 
+    /** 恢复运行暂停的任务*/
+    @GetMapping("/job/resume/pauseJob")
+    public Result resumeJobToRunning(@RequestParam @NotNull Integer jobId) throws SchedulerException {
+        return managerService.resumeJob(jobId);
+    }
 
+    /** 终止运行中的任务，从运行队列中移除*/
+    @GetMapping("/job/stop/runningJob")
+    public Result stopRunningJob(@RequestParam @NotNull Integer jobId) throws SchedulerException {
+        return managerService.stopRunningJob(jobId);
+    }
+
+    /** 将不在运行队列中的任务从数据库中删除*/
+    @GetMapping("/job/delete/jobInfo")
+    public Result deleteJobInfo(@RequestParam @NotNull Integer jobId) throws SchedulerException {
+        return managerService.deleteJobInfo(jobId);
+    }
 }

@@ -31,8 +31,43 @@ public interface JobManagerService {
      * 根据jobId将任务添加到执行计划中
      * @param jobId id
      * @return Result
+     * @throws SchedulerException e
      */
     Result addJobToRunning(int jobId) throws SchedulerException;
+
+    /**
+     * 暂停任务
+     * @param jobId jobId
+     * @return Result
+     * @throws SchedulerException e
+     */
+    Result pauseJob(Integer jobId) throws SchedulerException;
+
+    /**
+     * 终止运行中的任务，从运行队列中删除
+     * @param jobId jobId
+     * @return Result
+     * @throws SchedulerException e
+     */
+    Result stopRunningJob(Integer jobId) throws SchedulerException;
+
+
+
+    /**
+     * 恢复任务
+     * @param jobId JobInfo
+     * @return result
+     * @throws SchedulerException e
+     */
+    Result resumeJob(Integer jobId) throws SchedulerException;
+
+    /**
+     * 将不在运行队列中的任务从数据库中删除
+     * @param jobId jobId
+     * @return result
+     * @throws SchedulerException e
+     */
+    Result deleteJobInfo(Integer jobId) throws SchedulerException;
 
     /**
      * 更新任务执行频率,如果任务在执行计划中则同时更新调度计划
@@ -49,36 +84,6 @@ public interface JobManagerService {
      * @throws SchedulerException e
      */
     void updateJobStatus(int jobId, int status) throws SchedulerException;
-
-    /**
-     * 查询在执行计划中的任务
-     * @return List<JobInfo>
-     * @throws SchedulerException e
-     */
-    List<JobInfo> queryRunningJob() throws SchedulerException;
-
-
-    /**
-     * 删除任务
-     * @param jobId JobId
-     * @throws SchedulerException e
-     */
-    void deleteJob(int jobId) throws SchedulerException;
-
-    /**
-     * 暂停任务
-     * @param job JobInfo
-     * @throws SchedulerException e
-     */
-    void pauseJob(JobInfo job) throws SchedulerException;
-
-    /**
-     * 恢复任务
-     * @param job JobInfo
-     * @throws SchedulerException e
-     */
-    void resumeJob(JobInfo job) throws SchedulerException;
-
 
     /**
      * 立即执行

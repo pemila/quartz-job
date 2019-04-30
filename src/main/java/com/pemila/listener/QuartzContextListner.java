@@ -19,7 +19,8 @@ public class QuartzContextListner implements ServletContextListener {
                     .getWebApplicationContext(event.getServletContext())
                     .getBean("schedulerFactoryBean");
             startQuartz.shutdown(true);
-            Thread.sleep(1000);//主线程睡眠1s
+            //主线程睡眠1s
+            Thread.sleep(1000);
         }catch (Exception e){
             e.printStackTrace();
         }

@@ -13,7 +13,6 @@ import javax.persistence.*;
 @Data
 @Entity
 @Table(name = "job_info",uniqueConstraints = {@UniqueConstraint(columnNames="jobName")})
-
 public class JobInfo {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

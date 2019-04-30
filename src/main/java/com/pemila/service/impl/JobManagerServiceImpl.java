@@ -5,7 +5,6 @@ import com.pemila.core.QuartzJobFactoryDisallowConcurrent;
 import com.pemila.model.JobInfo;
 import com.pemila.repository.JobInfoRepository;
 import com.pemila.service.JobManagerService;
-import com.pemila.util.Logs;
 import com.pemila.util.Result;
 import org.quartz.*;
 import org.quartz.impl.matchers.GroupMatcher;
@@ -95,6 +94,49 @@ public class JobManagerServiceImpl implements JobManagerService {
     }
 
     @Override
+    public Result pauseJob(Integer jobId) throws SchedulerException {
+        JobInfo info = jobInfoRepository.findById(jobId).get();
+        Scheduler scheduler = schedulerFactoryBean.getScheduler();
+        JobKey jobKey = JobKey.jobKey(info.getJobName(), info.getJobGroup());
+        scheduler.pauseJob(jobKey);
+        return Result.success();
+    }
+
+    @Override
+    public Result resumeJob(Integer jobId) throws SchedulerException {
+        JobInfo info = jobInfoRepository.findById(jobId).get();
+        Scheduler scheduler = schedulerFactoryBean.getScheduler();
+        JobKey jobKey = JobKey.jobKey(info.getJobName(), info.getJobGroup());
+        scheduler.resumeJob(jobKey);
+        return Result.success();
+    }
+
+    @Override
+    public Result stopRunningJob(Integer jobId) throws SchedulerException {
+        JobInfo info = jobInfoRepository.findById(jobId).get();
+        //从执行计划中删除任务
+        Scheduler scheduler = schedulerFactoryBean.getScheduler();
+        JobKey jobKey = JobKey.jobKey(info.getJobName(), info.getJobGroup());
+        scheduler.deleteJob(jobKey);
+        return Result.success();
+    }
+
+    @Override
+    public Result deleteJobInfo(Integer jobId) throws SchedulerException {
+        JobInfo info = jobInfoRepository.findById(jobId).get();
+        Scheduler scheduler = schedulerFactoryBean.getScheduler();
+        JobDetail detail = scheduler.getJobDetail(JobKey.jobKey(info.getJobName(), info.getJobGroup()));
+        if(detail==null){
+            jobInfoRepository.deleteById(jobId);
+            return Result.success();
+        }else{
+            return Result.fail("任务在运行队列中，无法直接删除！");
+        }
+    }
+
+
+
+    @Override
     public void updateJobCron(int jobId, String cron) throws SchedulerException {
         JobInfo job = jobInfoRepository.findById(jobId).get();
         job.setCronExpression(cron);
@@ -112,74 +154,18 @@ public class JobManagerServiceImpl implements JobManagerService {
     }
 
     @Override
-    public void updateJobStatus(int jobId, int status) throws SchedulerException {
+    public void updateJobStatus(int jobId, int status){
         JobInfo job = jobInfoRepository.findById(jobId).get();
         switch (status){
             case 0:
-                deleteJob(jobId);
-                job.setJobStatus(0);
-                job.setUpdateTime(System.currentTimeMillis()/1000);
-                break;
             case 1:
-                job.setJobStatus(1);
+                job.setJobStatus(status);
                 job.setUpdateTime(System.currentTimeMillis()/1000);
-                addJob(job);
+                jobInfoRepository.saveAndFlush(job);
                 break;
             default:
                 break;
         }
-        jobInfoRepository.saveAndFlush(job);
-    }
-
-    @Override
-    public List<JobInfo> queryRunningJob() throws SchedulerException {
-        Scheduler scheduler = schedulerFactoryBean.getScheduler();
-        List<JobExecutionContext> executingJobs = scheduler.getCurrentlyExecutingJobs();
-        List<JobInfo> jobList = new ArrayList<JobInfo>(executingJobs.size());
-        for (JobExecutionContext executingJob : executingJobs) {
-            JobInfo job = new JobInfo();
-            JobDetail jobDetail = executingJob.getJobDetail();
-            JobKey jobKey = jobDetail.getKey();
-            Trigger trigger = executingJob.getTrigger();
-            job.setJobName(jobKey.getName());
-            job.setJobGroup(jobKey.getGroup());
-            job.setJobDesc("触发器:" + trigger.getKey());
-            Trigger.TriggerState triggerState = scheduler.getTriggerState(trigger.getKey());
-            //TODO 测试triggerState.ordinal()
-                job.setJobStatus(triggerState.ordinal());
-            if (trigger instanceof CronTrigger) {
-                CronTrigger cronTrigger = (CronTrigger) trigger;
-                String cronExpression = cronTrigger.getCronExpression();
-                job.setCronExpression(cronExpression);
-            }
-            jobList.add(job);
-        }
-        return jobList;
-    }
-
-
-    @Override
-    public void deleteJob(int jobId) throws SchedulerException {
-        JobInfo job = jobInfoRepository.findById(jobId).get();
-        //从执行计划中删除任务
-        Scheduler scheduler = schedulerFactoryBean.getScheduler();
-        JobKey jobKey = JobKey.jobKey(job.getJobName(), job.getJobGroup());
-        scheduler.deleteJob(jobKey);
-    }
-
-
-    @Override
-    public void pauseJob(JobInfo job) throws SchedulerException {
-        Scheduler scheduler = schedulerFactoryBean.getScheduler();
-        JobKey jobKey = JobKey.jobKey(job.getJobName(), job.getJobGroup());
-        scheduler.pauseJob(jobKey);
-    }
-
-    @Override
-    public void resumeJob(JobInfo job) throws SchedulerException {
-        Scheduler scheduler = schedulerFactoryBean.getScheduler();
-        JobKey jobKey = JobKey.jobKey(job.getJobName(), job.getJobGroup());
-        scheduler.resumeJob(jobKey);
     }
 
     @Override
